@@ -1,4 +1,4 @@
-name: FlightVGM
+name: F-VGM
 channels:
   - defaults
 dependencies:
@@ -210,4 +210,4 @@ dependencies:
       - xformers==0.0.25.post1
       - yapf==0.43.0
       - zipp==3.21.0
-prefix: /root/anaconda3/envs/FlightVGM
+prefix: /root/anaconda3/envs/F-VGM
