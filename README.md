@@ -1,6 +1,6 @@
 # OpenSora1.2-FlightVGM
 ```
-cd FlightVGM
+cd F-VGM
 ```
 ## Environment
 ```
@@ -23,5 +23,5 @@ bash sparse_inference.sh
 
 ## Generated video location
 ```
-/FlightVGM/logs
+/F-VGM/logs
 ```
