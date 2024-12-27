@@ -117,7 +117,7 @@ def main():
 
     # Calculate CLIP scores and save results
     average_score = calculate_clip_scores(args.video_folder, args.text_file, args.output_folder, args.output_filename)
-    print(f"[Average CLIPIM metric] : {average_score:.4f}")
+    print(f"[Average CLIPSIM metric] : {average_score:.4f}")
     print(f"Results saved to {os.path.join(args.output_folder, args.output_filename)}")
 
 if __name__ == "__main__":

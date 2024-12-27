@@ -21,29 +21,26 @@ conda activate F-VGM
 pip install flash-attn --no-build-isolation
 ```
 
-## Speed Comparison of Dense Inference and Sparse Inference
+## Running the Code
 **Prompt Path**: `./F-VGM/prompts.txt`   
 **Weight Path**: Weight will be automatically downloaded when you run the inference script  
 **Config Path**: `./F-VGM/configs`
 >Frames = 64, Resolution = 240p,  
 Other settings are OpenSora1.2 default settings.
-### Dense Inference
+### Inference
 ```bash
+cd F-VGM
 # Generate three videos at a time and output the total inference time.
 ./dense_inference.sh
-```
-### Sparse Inference
-```bash
-# Generate three videos at a time and output the total inference time.
 ./sparse_inference.sh
 ```
-## Generated video Quality Comparison
-```bash 
-# Generated video path
-Dense outputs: /F-VGM/logs/dense_samples
-Sparse outputs: /F-VGM/logs/sparse_samples
 
-# Clipsim scores
-Path: /F-VGM/clip_results/ 
+### Results
+Then, the program will output the average generation time for each video and the evaluation results of video quality (using CLIPSIM metrics), which will be saved in `clip_results/`. 
+
+```bash
+# Take dense inference as example
+[Average Latency]: Inference Time for a video is 32.15 seconds
+[Average CLIPSIM metric] : 0.3281
+Results saved to ./clip_results/clip_scores_dense.txt
 ```
-
