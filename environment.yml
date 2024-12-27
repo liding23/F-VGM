@@ -65,8 +65,6 @@ dependencies:
       - fastapi==0.115.6
       - ffmpy==0.5.0
       - filelock==3.16.1
-      - flash-attention==1.0.0
-      - flash-attn==2.7.2.post1
       - fonttools==4.55.3
       - frozenlist==1.5.0
       - fsspec==2024.12.0

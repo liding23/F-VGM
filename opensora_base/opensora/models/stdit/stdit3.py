@@ -95,6 +95,7 @@ class STDiT3Block(nn.Module):
     def forward(
         self,
         x,
+        step,
         y,
         t,
         mask=None,  # text mask
@@ -112,7 +113,7 @@ class STDiT3Block(nn.Module):
             shift_msa_zero, scale_msa_zero, gate_msa_zero, shift_mlp_zero, scale_mlp_zero, gate_mlp_zero = (
                 self.scale_shift_table[None] + t0.reshape(B, 6, -1)
             ).chunk(6, dim=1)
-
+         
         # modulate (attention)
         x_m = t2i_modulate(self.norm1(x), shift_msa, scale_msa)
         if x_mask is not None:
@@ -149,8 +150,13 @@ class STDiT3Block(nn.Module):
 
         # MLP
         if self.do_sparse:
-            reduce, unreduce = sparse_tensor(x_m, 27, 285, 2, 2, 0.98, "cosine")
+            if 3 < step < 28:
+                sim_mlp = 0.75+step*0.01
+            else: 
+                sim_mlp = 1
+            reduce, unreduce = sparse_tensor(x_m, 27, 285, 2, 2, sim_mlp, "cosine")
             x_m = reduce(x_m)
+            print(f"mlp层: ",1-x_m.shape[1]/(27*285))
             x_m = self.mlp(x_m)
             x_m = unreduce(x_m)
         else:
@@ -367,7 +373,7 @@ class STDiT3(PreTrainedModel):
             y = y.squeeze(1).view(1, -1, self.hidden_size)
         return y, y_lens
 
-    def forward(self, x, timestep, y, mask=None, x_mask=None, fps=None, height=None, width=None, **kwargs):
+    def forward(self, x, timestep, step, y, mask=None, x_mask=None, fps=None, height=None, width=None, **kwargs):
         dtype = self.x_embedder.proj.weight.dtype
         B = x.size(0)
         x = x.to(dtype)
@@ -435,8 +441,8 @@ class STDiT3(PreTrainedModel):
 
         # === blocks ===
         for spatial_block, temporal_block in zip(self.spatial_blocks, self.temporal_blocks):
-            x = auto_grad_checkpoint(spatial_block, x, y, t_mlp, y_lens, x_mask, t0_mlp, T, S)
-            x = auto_grad_checkpoint(temporal_block, x, y, t_mlp, y_lens, x_mask, t0_mlp, T, S)
+            x = auto_grad_checkpoint(spatial_block, x, step, y, t_mlp, y_lens, x_mask, t0_mlp, T, S)
+            x = auto_grad_checkpoint(temporal_block, x, step, y, t_mlp, y_lens, x_mask, t0_mlp, T, S)
 
         if self.enable_sequence_parallelism:
             x = rearrange(x, "B (T S) C -> B T S C", T=T, S=S)
