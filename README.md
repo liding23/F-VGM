@@ -9,9 +9,9 @@
 **Step 1**: In order to avoid library version errors, we exported environment.yml according to the libraries required by OpenSora1.2,   
             and you can install it directly according to this.
 ```
-# create a conda environment flollwing F-VGM/environment.yml
+# create a conda environment following F-VGM/environment.yaml
 cd F-VGM
-conda env create -f environment.yml
+conda env create -f environment.yaml
 conda activate F-VGM
 ```
 **Stpe 2**: Install flash-attention for inference acceleration

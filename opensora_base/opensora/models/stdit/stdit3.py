@@ -156,7 +156,7 @@ class STDiT3Block(nn.Module):
                 sim_mlp = 1
             reduce, unreduce = sparse_tensor(x_m, 27, 285, 2, 2, sim_mlp, "cosine")
             x_m = reduce(x_m)
-            print(f"mlp层: ",1-x_m.shape[1]/(27*285))
+            #print(f"mlp层: ",1-x_m.shape[1]/(27*285))
             x_m = self.mlp(x_m)
             x_m = unreduce(x_m)
         else:

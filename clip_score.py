@@ -1,193 +1,123 @@
-import os
 import torch
-import cv2
-import numpy as np
+import clip
 from PIL import Image
-from transformers import CLIPProcessor, CLIPModel, AutoTokenizer
-import time
-import logging
-# import wandb
-from tqdm import tqdm
+import cv2
+import os
 import argparse
-import torchvision.transforms as transforms
-from torchvision.transforms import Resize
-from torchvision.utils import save_image
-import requests
-import pdb
-# import ipdb
 
-def calculate_clip_score(video_path, text, model, tokenizer):
+def get_clip_score(video_path, text):
+    # Use CUDA as the fixed device
+    device = "cuda"
     
-    print("cur_text:",text)
-    
-    # Load the video
+    # Load the pre-trained CLIP model
+    model, preprocess = clip.load('ViT-B/32', device=device)
+
+    # Open the video file
     cap = cv2.VideoCapture(video_path)
+    
+    # Initialize variables to store total score and frame count
+    total_score = 0
+    frame_count = 0
 
-    # Extract frames from the video 
-    frames = []
-
+    # Process each frame in the video
     while cap.isOpened():
         ret, frame = cap.read()
         if not ret:
             break
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        resized_frame = cv2.resize(frame,(224,224))  # Resize the frame to match the expected input size
-        frames.append(resized_frame)
-
-    # Convert numpy arrays to tensors, change dtype to float, and resize frames
-    tensor_frames = [torch.from_numpy(frame).permute(2, 0, 1).float() for frame in frames]
-
-    # Initialize an empty tensor to store the concatenated features
-    concatenated_features = torch.tensor([], device=device)
-
-    # Generate embeddings for each frame and concatenate the features
-    with torch.no_grad():
-        for frame in tensor_frames:
-            frame_input = frame.unsqueeze(0).to(device)  # Add batch dimension and move the frame to the device
-            frame_features = model.get_image_features(frame_input)
-            concatenated_features = torch.cat((concatenated_features, frame_features), dim=0)
-
-    # Tokenize the text
-    text_tokens = tokenizer(text, return_tensors="pt", padding=True, truncation=True, max_length=77)
-
-    # Convert the tokenized text to a tensor and move it to the device
-    text_input = text_tokens["input_ids"].to(device)
-
-    # Generate text embeddings
-    with torch.no_grad():
-        text_features = model.get_text_features(text_input)
-
-    # Calculate the cosine similarity scores
-    concatenated_features = concatenated_features / concatenated_features.norm(p=2, dim=-1, keepdim=True)
-    text_features = text_features / text_features.norm(p=2, dim=-1, keepdim=True)
-    clip_score_frames = concatenated_features @ text_features.T
-    # Calculate the average CLIP score across all frames, reflects temporal consistency 
-    clip_score_frames_avg = clip_score_frames.mean().item()
-
-    return clip_score_frames_avg
-
-def calculate_clip_temp_score(video_path, model):
-    # Load the video
-    cap = cv2.VideoCapture(video_path)
-    to_tensor = transforms.ToTensor()
-    # Extract frames from the video 
-    frames = []
-    SD_images = []
-    resize = transforms.Resize([224,224])
-    while cap.isOpened():
-        ret, frame = cap.read()
-        if not ret:
-            break
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        # resized_frame = cv2.resize(frame,(224,224))  # Resize the frame to match the expected input size
-        frames.append(frame)
+        
+        # Convert the frame to RGB format
+        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        image = Image.fromarray(frame_rgb)
+        
+        # Preprocess the image and tokenize the text
+        image_input = preprocess(image).unsqueeze(0).to(device)
+        text_input = clip.tokenize([text]).to(device)
+        
+        # Generate embeddings for the image and text
+        with torch.no_grad():
+            image_features = model.encode_image(image_input)
+            text_features = model.encode_text(text_input)
+        
+        # Normalize the features
+        image_features = image_features / image_features.norm(dim=-1, keepdim=True)
+        text_features = text_features / text_features.norm(dim=-1, keepdim=True)
+        
+        # Calculate the cosine similarity to get the CLIP score
+        clip_score = torch.matmul(image_features, text_features.T).item()
+        
+        # Accumulate the score and increment frame count
+        total_score += clip_score
+        frame_count += 1
     
-    tensor_frames = torch.stack([resize(torch.from_numpy(frame).permute(2, 0, 1).float()) for frame in frames])
+    # Release the video capture object
+    cap.release()
 
-    # tensor_frames = [extracted_frames[i] for i in range(extracted_frames.size()[0])]
-    concatenated_frame_features = []
+    # Calculate the average score
+    average_score = total_score / frame_count if frame_count > 0 else 0
+    
+    return average_score
 
-    # Generate embeddings for each frame and concatenate the features
-    with torch.no_grad():  
-        for frame in tensor_frames: # Too many frames in a video, must split before CLIP embedding, limited by the memory
-            frame_input = frame.unsqueeze(0).to(device)  # Add batch dimension and move the frame to the device
-            frame_feature = model.get_image_features(frame_input)
-            concatenated_frame_features.append(frame_feature)
+def calculate_clip_scores(video_folder, text_file, output_folder, output_filename):
+    # Use CUDA as the fixed device
+    device = "cuda"
+    
+    # Read the content of the text file (each line will be a separate prompt)
+    with open(text_file, 'r') as file:
+        text_lines = [line.strip() for line in file.readlines()]
+    
+    # Get all video files in the folder and sort them alphabetically
+    video_paths = sorted(
+        [os.path.join(video_folder, file) for file in os.listdir(video_folder) if file.lower().endswith(('.mp4', '.avi', '.mov'))]
+    )
+    
+    # Check if the number of videos matches the number of prompts
+    if len(video_paths) != len(text_lines):
+        raise ValueError(f"The number of videos ({len(video_paths)}) does not match the number of prompts ({len(text_lines)}).")
+    
+    total_score = 0
+    video_count = 0
+    results = []
 
-    concatenated_frame_features = torch.cat(concatenated_frame_features, dim=0)
+    # Loop through each video and its corresponding prompt
+    for video_path, text in zip(video_paths, text_lines):
+        score = get_clip_score(video_path, text)
+        total_score += score
+        video_count += 1
+        results.append(f"{os.path.basename(video_path)}: {score}")
+    
+    # Calculate the overall average score
+    average_score = total_score / video_count if video_count > 0 else 0
+    
+    # Ensure the output folder exists
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
+    
+    # Define the output file path
+    output_file = os.path.join(output_folder, output_filename)
+    
+    # Save the results to a file, including the average score
+    with open(output_file, 'w') as f:
+        f.write("\n".join(results))
+        f.write(f"\n\nAverage CLIP Score for all videos: {average_score:.4f}")
+    
+    return average_score
 
-    # Calculate the similarity scores
-    clip_temp_score = []
-    concatenated_frame_features = concatenated_frame_features / concatenated_frame_features.norm(p=2, dim=-1, keepdim=True)
-    # ipdb.set_trace()
-
-    for i in range(concatenated_frame_features.size()[0]-1):
-        clip_temp_score.append(concatenated_frame_features[i].unsqueeze(0) @ concatenated_frame_features[i+1].unsqueeze(0).T)
-    clip_temp_score=torch.cat(clip_temp_score, dim=0)
-    # Calculate the average CLIP score across all frames, reflects temporal consistency 
-    clip_temp_score_avg = clip_temp_score.mean().item()
-
-    return clip_temp_score_avg
-
-def sort_key(item):
-    return int(item.split('_')[1].split('.')[0])
-
-def extract_number(filename):
-    return int(filename.split('_')[1].split('.')[0])
-
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--dir_videos", type=str, default='', help="Specify the path of generated videos")
-    parser.add_argument("--dir_prompts", type=str, default='', help="Specify the path of prompts")
-    parser.add_argument("--dir_results", type=str, default='', help="Specify the path of results")
-    parser.add_argument("--metric", type=str, default='celebrity_id_score', help="Specify the metric to be used")
+def main():
+    # Parse command-line arguments
+    parser = argparse.ArgumentParser(description="Calculate CLIP scores for videos in a folder.")
+    
+    # Adding required arguments for video folder, text file, output folder, and output filename
+    parser.add_argument("--video-folder", type=str, required=True, help="Path to the folder containing video files.")
+    parser.add_argument("--text-file", type=str, required=True, help="Path to the text file containing the descriptions.")
+    parser.add_argument("--output-folder", type=str, required=True, help="Path to the folder where results will be saved.")
+    parser.add_argument("--output-filename", type=str, required=True, help="Name of the output result file.")
+    
     args = parser.parse_args()
 
-    dir_videos = args.dir_videos
-    metric = args.metric
-    dir_prompts = args.dir_prompts
-    dir_results = args.dir_results
-   
-    #video_list = sorted(os.listdir(dir_videos), key=sort_key)
-    file_list = os.listdir(dir_videos)
-    video_list = sorted(file_list, key=lambda x: int(x.split('_')[-1].split('.')[0]))
-    video_paths = [os.path.join(dir_videos, x) for x in video_list]
-    #print(video_paths)
-    #prompt_paths = [os.path.join(dir_prompts, os.path.splitext(os.path.basename(x))[0]+'.txt') for x in video_paths]
+    # Calculate CLIP scores and save results
+    average_score = calculate_clip_scores(args.video_folder, args.text_file, args.output_folder, args.output_filename)
+    print(f"Average CLIP Score for all videos: {average_score:.4f}")
+    print(f"Results saved to {os.path.join(args.output_folder, args.output_filename)}")
 
-     # Create the directory if it doesn't exist
-    timestamp = time.strftime("%Y%m%d-%H%M%S")
-    #os.makedirs(dir_results+f"/{timestamp}")
-    # Set up logging
-    log_file_path = dir_results
-    #filename = f"/{timestamp}/{metric}_record.txt"
-    filename = f"/{metric}_record.txt"
-    log_file = log_file_path + filename
-    # Set up logging
-    logger = logging.getLogger()
-    logger.setLevel(logging.INFO)
-    # File handler for writing logs to a file
-    file_handler = logging.FileHandler(filename=log_file )
-    file_handler.setFormatter(logging.Formatter("%(asctime)s %(message)s", datefmt="%Y-%m-%d %H:%M:%S"))
-    logger.addHandler(file_handler)
-    # Stream handler for displaying logs in the terminal
-    stream_handler = logging.StreamHandler()
-    stream_handler.setFormatter(logging.Formatter("%(asctime)s %(message)s", datefmt="%Y-%m-%d %H:%M:%S"))
-    logger.addHandler(stream_handler)
-
-
-    # Load pretrained models
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    clip_model = CLIPModel.from_pretrained("clip-vit-base-patch32").to(device)
-    clip_tokenizer = AutoTokenizer.from_pretrained("clip-vit-base-patch32")
-    
-    # Calculate SD scores for all video-text pairs
-    scores = []
-    
-    test_num = 10
-    test_num = len(video_paths)
-    
-    with open(dir_prompts, 'r', encoding='utf-8') as file:
-        texts = [line.strip() for line in file.readlines()]
-    
-    count = 0
-    for i in tqdm(range(len(video_paths))):
-        video_path = video_paths[i]
-        #prompt_path = prompt_paths[i]
-        text = texts[i]
-        if count == test_num:
-            break
-        else:
-            #pdb.set_trace()
-            if metric == 'clip_score':
-                score = calculate_clip_score(video_path, text, clip_model, clip_tokenizer)
-            elif metric == 'clip_temp_score':
-                score = calculate_clip_temp_score(video_path,clip_model)
-            count+=1
-            scores.append(score)
-            average_score = sum(scores) / len(scores)
-            # count+=1
-            logging.info(f"Vid: {os.path.basename(video_path)},  Current {metric}: {score}, Current avg. {metric}: {average_score},  ")
-
-    # Calculate the average SD score across all video-text pairs
-    logging.info(f"Final average {metric}: {average_score}, Total videos: {len(scores)}")
+if __name__ == "__main__":
+    main()
