@@ -90,7 +90,7 @@ def sparse_tensor(metric: torch.Tensor,
         valid_count = 0
         # Count the number of tokens in the top-r that exceed the threshold
         for i in range(0, top_scores.shape[0], 2):
-            valid_count = max(valid_count,(top_scores[i] > sim_threshold).sum(dim=-1).item())
+            valid_count = max(valid_count,(top_scores[0] > sim_threshold).sum(dim=-1).item())
         r = valid_count
         if r <= 0:
             return do_nothing, do_nothing  
