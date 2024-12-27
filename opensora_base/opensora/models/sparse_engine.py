@@ -23,7 +23,7 @@ def sparse_tensor(metric: torch.Tensor,
     
     with torch.no_grad():
         hsy, wsx = h // sy, w // sx
-        metric = metric.to(torch.float32)
+        # metric = metric.to(torch.float32)
         if generator is None:
             generator = torch.default_generator
         # For each sy by sx kernel, randomly assign one token to be dst and the rest src
