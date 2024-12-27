@@ -208,4 +208,5 @@ dependencies:
       - xformers==0.0.25.post1
       - yapf==0.43.0
       - zipp==3.21.0
+      - openai-clip==1.0.1
 prefix: /root/anaconda3/envs/F-VGM
