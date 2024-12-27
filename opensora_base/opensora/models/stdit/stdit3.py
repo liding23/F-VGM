@@ -81,6 +81,10 @@ class STDiT3Block(nn.Module):
         self.drop_path = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
         self.scale_shift_table = nn.Parameter(torch.randn(6, hidden_size) / hidden_size**0.5)
         self.do_sparse = do_sparse
+        self.sparse_file_path = './sparsity.txt'
+        with open(self.sparse_file_path, 'w') as f:
+            f.write("sparisty is: \n")
+        
 
     def t_mask_select(self, x_mask, x, masked_x, T, S):
         # x: [B, (T, S), C]
@@ -150,13 +154,15 @@ class STDiT3Block(nn.Module):
 
         # MLP
         if self.do_sparse:
-            if 3 < step < 28:
-                sim_mlp = 0.75+step*0.01
-            else: 
-                sim_mlp = 1
+            sim_mlp = 0.75 +step*0.01
+            # sim_mlp = 0.9
             reduce, unreduce = sparse_tensor(x_m, 27, 285, 2, 2, sim_mlp, "cosine")
             x_m = reduce(x_m)
-            #print(f"mlp层: ",1-x_m.shape[1]/(27*285))
+
+            sparse_ratio = 1-x_m.shape[1]/(27*285)
+            with open(self.sparse_file_path, 'a') as f:
+                f.write(f"{sparse_ratio:.4f}\n")  
+
             x_m = self.mlp(x_m)
             x_m = unreduce(x_m)
         else:

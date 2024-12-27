@@ -317,6 +317,5 @@ def main():
     logger.info("Inference finished.")
     logger.info("Saved %s samples to %s", start_idx, save_dir)
 
-
 if __name__ == "__main__":
     main()
