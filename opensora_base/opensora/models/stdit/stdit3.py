@@ -155,6 +155,7 @@ class STDiT3Block(nn.Module):
         # MLP
         if self.do_sparse:
             sim_mlp = 0.75 +step*0.01
+            # sim_mlp = 0.9
             reduce, unreduce = sparse_tensor(x_m, 27, 285, 2, 2, sim_mlp, "cosine")
             x_m = reduce(x_m)
 

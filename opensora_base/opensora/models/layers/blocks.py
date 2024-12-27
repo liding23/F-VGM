@@ -170,9 +170,11 @@ class Attention(nn.Module):
         
         self.is_causal = False
         self.sparse_file_path = './sparsity.txt'
+        
         self.temporal_qkv_thres = 0.85
-        self.spatial_qkv_thres = 0.92
         self.temporal_o_thres = 0.9
+
+        self.spatial_qkv_thres = 0.92
         self.spatial_o_thres = 0.9
 
 
@@ -196,7 +198,7 @@ class Attention(nn.Module):
         elif self.do_sparse and N >= B:
             reduce, unreduce = sparse_tensor(x, 27, 15, 2, 1, self.spatial_qkv_thres, "cosine")
             x = reduce(x)
-
+            
             sparse_ratio = 1-x.shape[1]/(27*285)
             with open(self.sparse_file_path, 'a') as f:
                 f.write(f"{sparse_ratio:.4f}\n")  

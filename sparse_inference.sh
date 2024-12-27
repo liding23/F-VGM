@@ -7,4 +7,4 @@ python clip_score.py \
   --video-folder ./logs/sparse_samples \
   --text-file ./prompts.txt \
   --output-folder ./clip_results \
-  --output-filename clip_scores_sparse.txt
+  --output-filename clip_scores_sparse_1.txt
