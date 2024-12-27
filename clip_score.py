@@ -4,6 +4,7 @@ from PIL import Image
 import cv2
 import os
 import argparse
+from opensora_base.opensora.utils.misc import all_exists, create_logger, is_distributed, is_main_process, to_torch_dtype
 
 def get_clip_score(video_path, text):
     # Use CUDA as the fixed device
@@ -116,7 +117,7 @@ def main():
 
     # Calculate CLIP scores and save results
     average_score = calculate_clip_scores(args.video_folder, args.text_file, args.output_folder, args.output_filename)
-    print(f"Average CLIP Score for all videos: {average_score:.4f}")
+    print(f"[Average CLIPIM metric] : {average_score:.4f}")
     print(f"Results saved to {os.path.join(args.output_folder, args.output_filename)}")
 
 if __name__ == "__main__":
