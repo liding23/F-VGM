@@ -311,11 +311,11 @@ def main():
                         add_watermark(save_path)
         start_idx += len(batch_prompts)
     end_time = time.time()
-    elapsed_time = end_time - start_time
-    logger.info(f"Inference completed in {elapsed_time:.2f} seconds")
+    elapsed_time = (end_time - start_time)/start_idx
     
     logger.info("Inference finished.")
     logger.info("Saved %s samples to %s", start_idx, save_dir)
+    logger.info(f"[Average Latency]: Inference Time for a video is {elapsed_time:.2f} seconds")
 
 if __name__ == "__main__":
     main()

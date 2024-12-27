@@ -12,7 +12,7 @@
 import functools
 import math
 from typing import Optional
-import pdb
+
 
 import numpy as np
 import torch
@@ -167,17 +167,12 @@ class Attention(nn.Module):
         if rope is not None:
             self.rope = True
             self.rotary_emb = rope
-        
         self.is_causal = False
-        self.sparse_file_path = './sparsity.txt'
-        
+
         self.temporal_qkv_thres = 0.85
         self.temporal_o_thres = 0.9
-
         self.spatial_qkv_thres = 0.92
         self.spatial_o_thres = 0.9
-
-
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         B, N, C = x.shape
         # flash attn is not memory efficient for small sequences, this is empirical
@@ -185,24 +180,12 @@ class Attention(nn.Module):
 
         if self.do_sparse and N < B:
             reduce, unreduce = sparse_tensor(x, 19, 1, 2, 1, self.temporal_qkv_thres, "cosine")
-            #pdb.set_trace()
-            x = reduce(x)
-
-            sparse_ratio = 1-x.shape[1]/(27*285)
-            with open(self.sparse_file_path, 'a') as f:
-                f.write(f"{sparse_ratio:.4f}\n")  
-
+            x = reduce(x) 
             qkv = self.qkv(x)
-            #pdb.set_trace()
             qkv = unreduce(qkv)
         elif self.do_sparse and N >= B:
             reduce, unreduce = sparse_tensor(x, 27, 15, 2, 1, self.spatial_qkv_thres, "cosine")
             x = reduce(x)
-            
-            sparse_ratio = 1-x.shape[1]/(27*285)
-            with open(self.sparse_file_path, 'a') as f:
-                f.write(f"{sparse_ratio:.4f}\n")  
-            
             qkv = self.qkv(x)
             qkv = unreduce(qkv)
         else:
@@ -260,22 +243,12 @@ class Attention(nn.Module):
         if self.do_sparse and N < B:
             reduce, unreduce = sparse_tensor(x, 19, 1, 2, 1, self.temporal_o_thres, "cosine")
             x = reduce(x)
-
-            sparse_ratio = 1-x.shape[1]/(27*285)
-            with open(self.sparse_file_path, 'a') as f:
-                f.write(f"{sparse_ratio:.4f}\n")  
-            
             x = self.proj(x)
             #x = self.proj_drop(x)
             x = unreduce(x)
         elif self.do_sparse and N > B:
             reduce, unreduce = sparse_tensor(x, 27, 15, 2, 2, self.spatial_o_thres, "cosine")
             x = reduce(x)
-
-            sparse_ratio = 1-x.shape[1]/(27*285)
-            with open(self.sparse_file_path, 'a') as f:
-                f.write(f"{sparse_ratio:.4f}\n")  
-
             x = self.proj(x)
             x = self.proj_drop(x)
             x = unreduce(x)
@@ -523,7 +496,7 @@ class MultiHeadCrossAttention(nn.Module):
         self.attn_drop = nn.Dropout(attn_drop)
         self.proj = nn.Linear(d_model, d_model)
         self.proj_drop = nn.Dropout(proj_drop)
-        self.sparse_file_path = './sparsity.txt'
+
         self.qkv_thres = 0.95
         self.o_thres = 0.98
 
@@ -533,11 +506,6 @@ class MultiHeadCrossAttention(nn.Module):
         if self.do_sparse:
             reduce, unreduce = sparse_tensor(x, 27, 285, 2, 2, self.qkv_thres, "cosine")
             x = reduce(x)
-            
-            sparse_ratio = 1-x.shape[1]/(27*285)
-            with open(self.sparse_file_path, 'a') as f:
-                f.write(f"{sparse_ratio:.4f}\n")  
-
             q = self.q_linear(x)
             q = unreduce(q)
             q = q.view(1, -1, self.num_heads, self.head_dim)
@@ -556,11 +524,6 @@ class MultiHeadCrossAttention(nn.Module):
         if self.do_sparse:
             reduce, unreduce = sparse_tensor(x, 27, 285, 2, 2, self.o_thres, "cosine")
             x = reduce(x)
-
-            sparse_ratio = 1-x.shape[1]/(27*285)
-            with open(self.sparse_file_path, 'a') as f:
-                f.write(f"{sparse_ratio:.4f}\n")  
-
             x = self.proj(x)
             x = unreduce(x)
         else:

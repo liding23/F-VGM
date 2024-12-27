@@ -6,7 +6,7 @@ import torch.distributed as dist
 import torch.nn as nn
 import torch.nn.functional as F
 from typing import Tuple, Callable
-import pdb
+
 def do_nothing(x: torch.Tensor, mode: str = None):
     return x
 
@@ -89,12 +89,12 @@ def sparse_tensor(metric: torch.Tensor,
         top_scores = gather(node_max[..., None], dim=-2, index=edge_idx).squeeze(-1)
         valid_count = 0
         # Count the number of tokens in the top-r that exceed the threshold
-        # for i in range(0, top_scores.shape[0], 3):
-        valid_count = max(valid_count,(top_scores[0] > sim_threshold).sum(dim=-1).item())
+        for i in range(0, top_scores.shape[0], 8):
+            valid_count = max(valid_count,(top_scores[0] > sim_threshold).sum(dim=-1).item())
         r = valid_count
         if r <= 0:
             return do_nothing, do_nothing  
-        #pdb.set_trace()
+        
         unm_idx = edge_idx[..., r:, :]  # Unreduced Tokens
         src_idx = edge_idx[..., :r, :]  # reduced Tokens
         dst_idx = gather(node_idx[..., None], dim=-2, index=src_idx)

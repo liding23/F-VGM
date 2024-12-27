@@ -314,35 +314,11 @@ def main():
         start_idx += len(batch_prompts)
     
     end_time = time.time()
-    elapsed_time = end_time - start_time
-    logger.info(f"Inference completed in {elapsed_time:.2f} seconds")
+    elapsed_time = (end_time - start_time)/start_idx
     
     logger.info("Inference finished.")
     logger.info("Saved %s samples to %s", start_idx, save_dir)
-
-    # == compute sparsity ==
-    def calculate_average_sparse(file_path):
-        # Open the file and read all lines
-        with open(file_path, 'r') as f:
-            lines = f.readlines()
-
-        # Exclude the first line (assumed to be the header)
-        sparse_values = [float(line.strip()) for line in lines[1:]]  # Read from the second line onward
-
-        # Calculate the average sparsity
-        if sparse_values:
-            average_sparse = sum(sparse_values) / len(sparse_values)  # Compute the mean of all sparsity values
-        else:
-            average_sparse = 0.0  # If no data is present, set average to 0.0
-
-        return average_sparse
-
-    # Call the function to calculate the average sparsity
-    file_path = 'sparsity.txt'  # Specify the path to the text file containing sparsity values
-    average_sparse = calculate_average_sparse(file_path)
-
-    # Print the calculated average sparsity value
-    logger.info(f"Average sparsity: {average_sparse:.4f}")
+    logger.info(f"[Average Latency]: Inference Time for a video is {elapsed_time:.2f} seconds")
 
 
 if __name__ == "__main__":
