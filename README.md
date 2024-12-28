@@ -11,8 +11,7 @@
 
 **Step 1**: In order to avoid library version errors, we export `environment.yaml` according to the libraries required by [OpenSora 1.2](https://github.com/hpcaitech/Open-Sora), and you can install it directly according to this.
 ```bash
-# create a conda environment following F-VGM/environment.yaml
-cd F-VGM
+# create a conda environment following environment.yaml
 conda env create -f environment.yaml
 conda activate F-VGM
 ```
@@ -22,14 +21,13 @@ pip install flash-attn --no-build-isolation
 ```
 
 ## Running the Code
-**Prompt Path**: `./F-VGM/prompts.txt`   
+**Prompt Path**: `prompts.txt`   
 **Weight Path**: Weight will be automatically downloaded when you run the inference script  
-**Config Path**: `./F-VGM/configs`
+**Config Path**: `configs/`
 >Frames = 64, Resolution = 240p,  
 Other settings are OpenSora1.2 default settings.
 ### Inference
 ```bash
-cd F-VGM
 # Generate three videos at a time and output the total inference time.
 ./dense_inference.sh
 ./sparse_inference.sh
@@ -40,7 +38,7 @@ Then, the program will output the average generation time for each video and the
 
 ```bash
 # Take dense inference as example
-[Average Latency]: Inference Time for a video is 32.15 seconds
-[Average CLIPSIM metric] : 0.3281
+[Average Latency]: Inference Time for a video is 32.03 seconds
+[Average CLIPSIM metric] : 0.3033
 Results saved to ./clip_results/clip_scores_dense.txt
 ```
